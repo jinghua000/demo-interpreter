@@ -11,10 +11,7 @@ A demo JavaScript interpreter.
 - let
 - const
 - function (function declaration treated as const declaration)
-- +
-- -
-- *
-- /
+- if 
 
 ## Tests
 

@@ -16,35 +16,24 @@ export class Scope {
             return this.parent.get(name)
         }
     }
-
-    set(name, value) {
-        // ...
-    }
-
+    
     $var() {
         throw new Error(`"var" declaration is not supported`)
     }
     
-    $let(name: string, value: any) {
+    $let(name: string, value?: any) {
         this._check(name)
-        this.store.set(name, {
-            value,
-            kind: 'let'
-        })
+        this.store.set(name, ref(value, 'let'))
     }
 
     $const(name: string, value: any) {
         this._check(name)
-        this.store.set(name, {
-            value,
-            kind: 'const'
-        })
+        this.store.set(name, ref(value, 'const'))
     }
 
     _check(name: string) {
         if (this.store.has(name)) {
-            const msg = `${name} has already been declared`
-            throw new SyntaxError(msg)
+            throw new SyntaxError(`${name} has already been declared`)
         }
     }
 }
