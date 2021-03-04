@@ -8,11 +8,33 @@ A demo JavaScript interpreter.
 
 **Only Support Features Below**
 
-- let
-- const
-- function (function declaration treated as const declaration)
-- if 
+- let - only Identifier
+- const - only Identifier
+- function (function declaration treated as const declaration, params only support Identifier)
+- if / else if / else
+- binary expression
+- assignment expression
+
+## Example
+
+Can run like this:
+
+```js
+import { run } from '../src'
+
+run(
+    `
+        function fib(n) {
+            if (n < 2) return n 
+
+            return fib(n - 1) + fib(n - 2)
+        }
+
+        fib(10)
+    `
+) // => 55
+```
 
 ## Tests
 
-run `yarn test`.
+Run `yarn test`.
