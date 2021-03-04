@@ -1,53 +1,15 @@
+import * as ES from 'estree'
 import { Scope } from './scope'
 import { state, callstack, Ref } from './shared'
-import * as ES from 'estree'
-
-const BinaryVisitor = {
-    '+': (l: any, r: any ) => l + r,
-    '-': (l: any, r: any ) => l - r,
-    '*': (l: any, r: any ) => l * r,
-    '/': (l: any, r: any ) => l / r,
-    '%': (l: any, r: any ) => l % r,
-    '**': (l: any, r: any ) => l ** r,
-    '>': (l: any, r: any ) => l > r,
-    '<': (l: any, r: any ) => l < r,
-    '>=': (l: any, r: any ) => l >= r,
-    '<=': (l: any, r: any ) => l <= r,
-    '==': (l: any, r: any ) => l == r,
-    '===': (l: any, r: any ) => l === r,
-    '!=': (l: any, r: any ) => l != r,
-    '!==': (l: any, r: any ) => l === r,
-    '|': (l: any, r: any ) => l | r,
-    '&': (l: any, r: any ) => l & r,
-    '^': (l: any, r: any ) => l ^ r,
-    '<<': (l: any, r: any ) => l << r,
-    '>>': (l: any, r: any ) => l >> r,
-    '>>>': (l: any, r: any ) => l >>> r,
-    'in': (l: any, r: any ) => l in r,
-    'instanceof': (l: any, r: any ) => l instanceof r,
-}
-
-const AssignVisitor = {
-    '=': (l: Ref, r: any) => l.value = r,
-    '-=': (l: Ref, r: any) => l.value -= r,
-    '+=': (l: Ref, r: any) => l.value += r,
-    '*=': (l: Ref, r: any) => l.value *= r,
-    '/=': (l: Ref, r: any) => l.value /= r,
-    '%=': (l: Ref, r: any) => l.value %= r,
-    '**=': (l: Ref, r: any) => l.value **= r,
-    '<<=': (l: Ref, r: any) => l.value <<= r,
-    '>>=': (l: Ref, r: any) => l.value >>= r,
-    '>>>=': (l: Ref, r: any) => l.value >>>= r,
-    '&=': (l: Ref, r: any) => l.value &= r,
-    '^=': (l: Ref, r: any) => l.value ^= r,
-    '|=': (l: Ref, r: any) => l.value |= r,
-    '&&=': (l: Ref, r: any) => l.value &&= r,
-    '||=': (l: Ref, r: any) => l.value ||= r,
-    '??=': (l: Ref, r: any) => l.value ??= r,
-}
+import { 
+    BinaryVisitor, 
+    AssignVisitor, 
+    UpdateVisitor,
+    LogicVisitor,
+} from './visitors'
 
 function createFunction(node: ES.BaseFunction, scope: Scope) {
-    return function (...args) {
+    return function (...args: any) {
         const { params, body } = node
         const newScope = new Scope(scope)
 
@@ -143,6 +105,27 @@ const Visitor = {
             visit(node.right, scope)
         )
     },
+    UpdateExpression(node: ES.UpdateExpression, scope: Scope) {
+        if (node.argument.type === 'Identifier') {
+            return UpdateVisitor[node.operator](
+                scope.get(node.argument.name),
+                node.prefix
+            )
+        } else {
+            throw new Error(`type "${node.argument.type}" update expresssion is not supported`)
+        }
+    },
+    LogicalExpression(node: ES.LogicalExpression, scope: Scope) {
+        return LogicVisitor[node.operator](
+            visit(node.left, scope),
+            visit(node.right, scope),
+        )
+    },
+    ConditionalExpression(node: ES.ConditionalExpression, scope: Scope) {
+        return visit(node.test, scope) 
+            ? visit(node.consequent, scope)
+            : visit(node.alternate, scope)
+    },
     IfStatement(node: ES.IfStatement, scope: Scope) {
         const condition = visit(node.test, scope)
         const { consequent, alternate } = node
@@ -164,7 +147,7 @@ const Visitor = {
         }
     },
     BlockStatement(node: ES.BlockStatement, scope: Scope) {
-        let result
+        let result: any
         const { body } = node
         for (let i = 0; i < body.length; i++) {
             result = visit(body[i], scope)
