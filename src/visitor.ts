@@ -1,5 +1,5 @@
 import { Scope } from './scope'
-import { state, Ref } from './shared'
+import { state, callstack, Ref } from './shared'
 import * as ES from 'estree'
 
 const BinaryVisitor = {
@@ -46,6 +46,23 @@ const AssignVisitor = {
     '??=': (l: Ref, r: any) => l.value ??= r,
 }
 
+function createFunction(node: ES.BaseFunction, scope: Scope) {
+    return function (...args) {
+        const { params, body } = node
+        const newScope = new Scope(scope)
+
+        params.forEach((param, index) => {
+            if (param.type === 'Identifier') {
+                newScope.$let(param.name, args[index])
+            } else {
+                throw new Error(`type "${param.type}" params is not supported`)
+            }
+        })
+
+        return visit(body, newScope)
+    }   
+}
+
 const Visitor = {
     Program(node: ES.Program, scope: Scope) {
         let result: any
@@ -56,6 +73,32 @@ const Visitor = {
     },
     ExpressionStatement(node: ES.ExpressionStatement, scope: Scope) {
         return visit(node.expression, scope)
+    },
+    CallExpression(node: ES.CallExpression, scope: Scope) {
+        const { callee } = node
+        let result: any
+
+        if (callee.type === 'Identifier') {
+            const name = callee.name
+            const params = node.arguments.map(param => visit(param, scope))
+            callstack.push({})
+            result = scope.get(name).value(...params)
+            callstack.pop()
+        } else {
+            throw new Error(`type "${callee.type}" callee is not supported`)
+        }
+
+        return result
+    },
+    ReturnStatement(node: ES.ReturnStatement, scope: Scope) {
+        callstack.current && (callstack.current.return = true)
+        return visit(node.argument, scope)
+    },
+    FunctionDeclaration(node: ES.FunctionDeclaration, scope: Scope) {
+        scope.$const(node.id.name, createFunction(node, scope))
+    },
+    FunctionExpression(node: ES.FunctionExpression, scope: Scope) {
+        return createFunction(node, scope)
     },
     VariableDeclaration(node: ES.VariableDeclaration, scope: Scope) {
         state.kind = node.kind
@@ -77,7 +120,7 @@ const Visitor = {
             } else if (state.kind === 'const') {
                 scope.$const(name, visit(init, scope))
             } else if (state.kind === 'var') {
-                throw new Error(`"var" declaration is not supported`)
+                scope.$var()
             }
         } else {
             throw new Error(`type "${node.id.type}" declaration is not supported`)
@@ -125,8 +168,15 @@ const Visitor = {
         const { body } = node
         for (let i = 0; i < body.length; i++) {
             result = visit(body[i], scope)
+
+            if (callstack.current && callstack.current.return) {
+                return result
+            }
         }
-        return result
+
+        if (!callstack.current) {
+            return result
+        }
     },
     BinaryExpression(node: ES.BinaryExpression, scope: Scope) {
         return BinaryVisitor[node.operator](

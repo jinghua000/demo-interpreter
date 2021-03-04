@@ -55,3 +55,19 @@ it('can assign to a variable many times', () => {
         `
     )).toBe(3)  
 })
+
+it('undefined variable with throw an error', () => {
+    expect(() => run(
+        `
+            id
+        `
+    )).toThrow(ReferenceError)
+})
+
+it('var is not supported', () => {
+    expect(() => run(
+        `
+            var a = 123
+        `
+    )).toThrow(Error)
+})
