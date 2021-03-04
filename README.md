@@ -14,6 +14,9 @@ A demo JavaScript interpreter.
 - if / else if / else
 - binary expression
 - assignment expression
+- logic expression: && / || / ??
+- condition expression: cond ? A : B 
+- update expression: ++ / --
 
 ## Example
 
